@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciador de Projetos - Ordens de Serviço</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .btn { background: #007bff; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; margin-right: 5px; display: inline-block; }
+        .btn-success { background: #28a745; padding: 8px 15px; font-size: 14px; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-danger { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>Ordens de Serviço (OS)</h1>
+    <p>Selecione uma OS abaixo para ver seus detalhes e itens, ou gerencie os registros.</p>
+    
+    <p>
+        <a href="{% url 'cadastrar_os' %}" class="btn btn-success">+ Criar Nova OS</a>
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Número da OS (YYYY)</th>
+                <th>Descrição</th>
+                <th>Criado por</th>
+                <th>Data de Criação</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for os in ordens_servico %}
+            <tr>
+                <td><strong>{{ os.numero_os }}</strong></td>
+                <td>{{ os.descricao }}</td>
+                <td>{{ os.criado_por }}</td>
+                <td>{{ os.criado_em|date:"d/m/Y H:i" }}</td>
+                <td>
+                    <a href="{% url 'detalhe_os' os.id %}" class="btn">Abrir</a>
+                    <a href="{% url 'editar_os' os.id %}" class="btn btn-warning">Editar</a>
+                    <a href="{% url 'excluir_os' os.id %}" class="btn btn-danger">Excluir</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">Nenhuma Ordem de Serviço cadastrada até o momento.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

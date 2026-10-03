@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmar Exclusão</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .card { max-width: 500px; background: #fff3f3; padding: 20px; border: 1px solid #f5c6cb; border-radius: 5px; }
+        .btn { padding: 8px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; border: none; cursor: pointer; display: inline-block; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Confirmar Exclusão de {{ tipo }}</h2>
+        <p>Tem certeza de que deseja excluir <strong>{{ objeto }}</strong>?</p>
+        <p><em>Aviso: Todos os elementos subordinados a este registro serão apagados permanentemente.</em></p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Sim, Excluir</button>
+            <a href="javascript:history.back()" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+</body>
+</html>

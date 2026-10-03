@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ titulo }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background: #f4f6f9; }
+        .card { background: white; padding: 25px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 650px; margin: auto; }
+        h2 { margin-top: 0; color: #333; font-size: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; color: #555; }
+        select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input[type="file"] { margin-top: 5px; font-size: 12px; }
+        .alert-error { background: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
+        .btn { padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; border: none; cursor: pointer; display: inline-block; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-secondary { background: #6c757d; color: white; margin-left: 10px; }
+        .row { display: flex; gap: 15px; }
+        .col { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>{{ titulo }}</h2>
+        <p style="font-size: 13px; color: #d9534f; margin-bottom: 20px;"><strong>⚠ Padrão de Nome Obrigatório para o Arquivo:</strong> <code>{{ doc.nome_arquivo_padrao }}.ext</code></p>
+        
+        {% if erro_validacao %}
+            <div class="alert-error"><strong>Erro de Validação:</strong> {{ erro_validacao }}</div>
+        {% endif %}
+
+        <!-- Adicionado o id 'formArquivos' para interceptar o envio -->
+        <form id="formArquivos" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="form-group col">
+                    <label>{{ form.status.label }}</label>
+                    {{ form.status }}
+                </div>
+                <div class="form-group col">
+                    <label>{{ form.revisao.label }}</label>
+                    {{ form.revisao }}
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+            <div class="form-group">
+                <label>Selecionar Arquivo Editável</label>
+                {{ form.upload_editavel }}
+            </div>
+
+            <div class="form-group">
+                <label>Selecionar Arquivo PDF</label>
+                {{ form.upload_pdf }}
+            </div>
+
+            <div class="form-group">
+                <label>Selecionar Arquivo Adicional</label>
+                {{ form.upload_adicional }}
+            </div>
+
+            <div style="margin-top: 25px;">
+                <button type="submit" class="btn btn-primary">Salvar e Validar Arquivo</button>
+                <a href="{% url 'detalhe_os' doc.item.subconjunto.conjunto.os.id %}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Intercepta o envio do formulário para verificar se nenhum arquivo foi selecionado
+        document.getElementById('formArquivos').addEventListener('submit', function(e) {
+            const inputEditavel = document.querySelector('input[name="upload_editavel"]');
+            const inputPdf = document.querySelector('input[name="upload_pdf"]');
+            const inputAdicional = document.querySelector('input[name="upload_adicional"]');
+
+            const semArquivo = (!inputEditavel || inputEditavel.files.length === 0) &&
+                               (!inputPdf || inputPdf.files.length === 0) &&
+                               (!inputAdicional || inputAdicional.files.length === 0);
+
+            if (semArquivo) {
+                const confirmar = confirm("Nenhum arquivo novo foi selecionado. Deseja prosseguir? O sistema verificará automaticamente se já existe um arquivo correspondente na pasta física.");
+                if (!confirmar) {
+                    e.preventDefault(); // Cancela o envio se o usuário clicar em Cancelar
+                }
+            }
+        });
+    </script>
+</body>
+</html>
