@@ -56,11 +56,6 @@ STATUS_DOCUMENTO_CHOICES = [
 REVISAO_CHOICES = [(f"R{i:02d}", f"R{i:02d}") for i in range(21)]
 
 def executar_backup_e_exclusao_pasta(caminho_pasta_alvo):
-    """
-    Cria uma pasta de backup na pasta imediatamente acima (diretório pai),
-    nomeada como: [NomeDaPastaOriginal]_[DD-MM-AAAA_HH-MM] (sem segundos),
-    copia todo o conteúdo para lá e remove a original do Windows.
-    """
     print(f'cccaminho:{caminho_pasta_alvo}')
     if caminho_pasta_alvo and os.path.exists(caminho_pasta_alvo):
         diretorio_pai = os.path.dirname(caminho_pasta_alvo)
@@ -90,7 +85,24 @@ class OrdemServico(models.Model):
         nome_pasta = f"OS-{self.numero_os} - {self.descricao}".upper()
         return os.path.join(CAMINHO_BASE_PROJETOS, nome_pasta)
 
+    def clean(self):
+        super().clean()
+        if self.numero_os:
+            qs = OrdemServico.objects.filter(numero_os__iexact=self.numero_os.strip())
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError({"numero_os": f"Já existe uma Ordem de Serviço cadastrada com o número '{self.numero_os}'."})
+        
+        if self.descricao:
+            qs_desc = OrdemServico.objects.filter(descricao__iexact=self.descricao.strip())
+            if self.pk:
+                qs_desc = qs_desc.exclude(pk=self.pk)
+            if qs_desc.exists():
+                raise ValidationError({"descricao": f"Já existe uma Ordem de Serviço cadastrada com a descrição '{self.descricao}'."})
+
     def save(self, *args, **kwargs):
+        self.full_clean()
         is_new = self.pk is None
         super().save(*args, **kwargs)
         if is_new:
@@ -119,7 +131,21 @@ class Conjunto(models.Model):
         nome_pasta = f"{self.acronimo_vv} - {self.titulo_1}".upper()
         return os.path.join(self.os.caminho_pasta, nome_pasta)
 
+    def clean(self):
+        super().clean()
+        if self.os_id:
+            qs = Conjunto.objects.filter(os=self.os)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            
+            if qs.filter(acronimo_vv__iexact=self.acronimo_vv.strip()).exists():
+                raise ValidationError({"acronimo_vv": f"Já existe um Conjunto com o acrônimo '{self.acronimo_vv}' nesta OS."})
+            
+            if self.titulo_1 and qs.filter(titulo_1__iexact=self.titulo_1.strip()).exists():
+                raise ValidationError({"titulo_1": f"Já existe um Conjunto com o título '{self.titulo_1}' nesta OS."})
+
     def save(self, *args, **kwargs):
+        self.full_clean()
         is_new = self.pk is None
         super().save(*args, **kwargs)
         if is_new:
@@ -139,12 +165,27 @@ class Subconjunto(models.Model):
     titulo_2 = models.CharField(max_length=150, blank=True, null=True, verbose_name="Título 2 (Opcional)")
     criado_por = models.CharField(max_length=50, choices=CRIADOR_CHOICES, verbose_name="Criado por")
 
+    def clean(self):
+        super().clean()
+        if self.conjunto_id:
+            qs = Subconjunto.objects.filter(conjunto=self.conjunto)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            
+            if qs.filter(acronimo_uu__iexact=self.acronimo_uu.strip()).exists():
+                raise ValidationError({"acronimo_uu": f"Já existe um Subconjunto com o acrônimo '{self.acronimo_uu}' neste Conjunto."})
+            
+            if self.titulo_2 and qs.filter(titulo_2__iexact=self.titulo_2.strip()).exists():
+                raise ValidationError({"titulo_2": f"Já existe um Subconjunto com o título '{self.titulo_2}' neste Conjunto."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def delete(self, *args, **kwargs):
-        # Faz backup das pastas físicas dos documentos associados antes de deletar
         for item in self.itens.all():
             for doc in item.documentos.all():
                 pasta = doc.caminho_pasta
-                
                 if pasta and os.path.exists(pasta):
                     executar_backup_e_exclusao_pasta(pasta)
         super().delete(*args, **kwargs)
@@ -158,6 +199,23 @@ class Item(models.Model):
     acronimo_tt = models.CharField(max_length=10, verbose_name="Nº do Item (TT)")
     titulo_3 = models.CharField(max_length=150, blank=True, null=True, verbose_name="Título 3 (Opcional)")
     criado_por = models.CharField(max_length=50, choices=CRIADOR_CHOICES, verbose_name="Criado por")
+
+    def clean(self):
+        super().clean()
+        if self.subconjunto_id:
+            qs = Item.objects.filter(subconjunto=self.subconjunto)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            
+            if qs.filter(acronimo_tt__iexact=self.acronimo_tt.strip()).exists():
+                raise ValidationError({"acronimo_tt": f"Já existe um Item com o acrônimo '{self.acronimo_tt}' neste Subconjunto."})
+            
+            if self.titulo_3 and qs.filter(titulo_3__iexact=self.titulo_3.strip()).exists():
+                raise ValidationError({"titulo_3": f"Já existe um Item com o título '{self.titulo_3}' neste Subconjunto."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Item {self.acronimo_tt} {('- ' + self.titulo_3) if self.titulo_3 else ''}"
@@ -185,7 +243,7 @@ class DocumentoItem(models.Model):
     @property
     def codigo_completo(self):
         xxx = self.tipo_documento
-        yyyy = self.item.subconjunto.conjunto.os.numero_os
+        yyyy = self.item.subconjunto.conjunto.os.numero_os.split('.')[0] if self.item.subconjunto.conjunto.os.numero_os else ""
         vv = self.item.subconjunto.conjunto.acronimo_vv
         uu = self.item.subconjunto.acronimo_uu
         tt = self.item.acronimo_tt
@@ -197,10 +255,6 @@ class DocumentoItem(models.Model):
 
     @property
     def caminho_pasta(self):
-        """
-        Hierarquia: OS -> Conjunto -> Tipo de documento -> Subconjunto (se houver Título 2)
-        Sem pasta separada para Item; os arquivos ficam no último nível válido.
-        """
         conjunto = self.item.subconjunto.conjunto
         sub = self.item.subconjunto
         
@@ -214,8 +268,20 @@ class DocumentoItem(models.Model):
             
         return caminho_atual
 
+    def clean(self):
+        super().clean()
+        if self.item_id and self.tipo_documento:
+            qs = DocumentoItem.objects.filter(item=self.item, tipo_documento=self.tipo_documento)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError(f"Já existe um documento do tipo '{self.get_tipo_documento_display()}' cadastrado para este Item.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def tratar_upload_arquivo(self, arquivo_upload, tipo_campo='editavel'):
-        """Valida extensões, nome do arquivo, estrutura de pastas e gerencia OBSOLETO"""
         if not arquivo_upload:
             return None
 
@@ -275,12 +341,10 @@ class DocumentoItem(models.Model):
         shutil.move(caminho_arquivo_atual, caminho_obsoleto)
 
     def delete(self, *args, **kwargs):
-        # Se for deletar um documento específico, remove ou faz backup se necessário
         super().delete(*args, **kwargs)
 
     @property
     def alerta_prazo(self):
-        """Retorna verde (>3 dias), amarelo (2 a 3 dias) ou vermelho (<=1 dia / vencido)"""
         if not self.data_emissao_final:
             return None
         dias_restantes = (self.data_emissao_final - date.today()).days
