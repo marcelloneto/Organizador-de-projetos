@@ -79,6 +79,29 @@
     </style>
 </head>
 <body>
+
+    <!-- BARRA SUPERIOR: USUÁRIO LOGADO NO CANTO DIREITO -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 8px 15px; background: #e9ecef; border-radius: 5px;">
+        <div style="font-size: 13px; color: #555;">
+            Sistema de Gestão de Engenharia
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            {% if user.is_authenticated %}
+                <span style="font-size: 13px; color: #333;">
+                    👤 Olá, <strong>{{ user.username }}</strong>
+                </span>
+                <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger" style="font-size: 11px; padding: 3px 8px;">
+                        Sair
+                    </button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-primary" style="font-size: 11px; padding: 3px 8px;">Entrar</a>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="menu">
         <a href="{% url 'lista_os' %}" class="btn btn-primary">← Voltar para Lista de OS</a>
         {% if os.id %}
@@ -288,20 +311,106 @@
     </div>
 
     <script>
+        window.OS_ID = "{{ os.id }}";
+        window.USER_ID = "{{ user.id }}";
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const osId = window.OS_ID;
+            const userId = window.USER_ID;
+
+            // Chaves exclusivas por OS e por Usuário usando sessionStorage. 
+            // (Tudo é apagado automaticamente ao fechar a aba ou janela!)
+            const storageKeyArvore = `arvore_estado_os_${osId}_user_${userId}`;
+            const storageKeyFiltros = `filtros_os_${osId}_user_${userId}`;
+
+            // --- 1. RESTAURAR CAMPO DE PESQUISA DA SESSÃO ---
+            const filtrosSalvos = sessionStorage.getItem(storageKeyFiltros);
+            const campoBusca = document.getElementById('q');
+            
+            if (filtrosSalvos && campoBusca && !campoBusca.value) {
+                try {
+                    const dados = JSON.parse(filtrosSalvos);
+                    if (dados.q) {
+                        campoBusca.value = dados.q;
+                    }
+                } catch (e) {
+                    console.error("Erro ao carregar termo de busca", e);
+                }
+            }
+
+            if (campoBusca) {
+                campoBusca.addEventListener('input', function() {
+                    const filtrosData = { q: campoBusca.value };
+                    sessionStorage.setItem(storageKeyFiltros, JSON.stringify(filtrosData));
+                });
+            }
+
+            // --- 2. RESTAURAR ESTADO DA ÁRVORE DA SESSÃO ---
+            const estadoSalvo = sessionStorage.getItem(storageKeyArvore);
+            if (estadoSalvo) {
+                try {
+                    const indicesAbertos = JSON.parse(estadoSalvo);
+                    const elementosDetails = document.querySelectorAll("details");
+                    
+                    elementosDetails.forEach((detalhe, index) => {
+                        if (indicesAbertos.includes(index)) {
+                            detalhe.setAttribute("open", "true");
+                        } else {
+                            detalhe.removeAttribute("open");
+                        }
+                    });
+                } catch (e) {
+                    console.error("Erro ao carregar estado da árvore", e);
+                }
+            } else {
+                expandirTodos(false);
+            }
+
+            // --- 3. SALVAR ESTADO DA ÁRVORE NA SESSÃO AO ALTERAR ---
+            document.querySelectorAll("details").forEach((detalhe) => {
+                detalhe.addEventListener("toggle", function() {
+                    const elementosDetails = document.querySelectorAll("details");
+                    const indicesAbertos = [];
+                    
+                    elementosDetails.forEach((el, idx) => {
+                        if (el.hasAttribute("open")) {
+                            indicesAbertos.push(idx);
+                        }
+                    });
+                    
+                    sessionStorage.setItem(storageKeyArvore, JSON.stringify(indicesAbertos));
+                });
+            });
+
+            // --- 4. ATUALIZAÇÃO AUTOMÁTICA A CADA 15 SEGUNDOS ---
+            setInterval(function() {
+                window.location.reload();
+            }, 15000);
+        });
+
+        // --- FUNÇÕES DE CONTROLE DE FILTROS E ÁRVORE ---
         function toggleFilter(tipo, valor) {
             const btn = document.querySelector(`button[data-filter-type="${tipo}"][data-value="${valor}"]`);
             if (btn) {
                 btn.classList.toggle('active');
                 atualizarCamposHidden();
-                document.getElementById('filterForm').submit();
+                
+                const form = document.getElementById('filterForm');
+                if (form) {
+                    form.submit();
+                }
+            } else {
+                console.error("Botão de filtro não encontrado:", tipo, valor);
             }
         }
 
         function atualizarCamposHidden() {
             const container = document.getElementById('selectedHiddenContainer');
-            container.innerHTML = '';
+            if (!container) return;
             
+            container.innerHTML = '';
             const botoesAtivos = document.querySelectorAll('.filter-pill.active');
+            
             botoesAtivos.forEach(btn => {
                 const tipo = btn.getAttribute('data-filter-type');
                 const valor = btn.getAttribute('data-value');
@@ -314,16 +423,6 @@
             });
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
-            atualizarCamposHidden();
-
-            const sessaoIniciada = sessionStorage.getItem("sessao_detalhes_inicializada");
-            if (!sessaoIniciada) {
-                expandirTodos(false);
-                sessionStorage.setItem("sessao_detalhes_inicializada", "true");
-            }
-        });
-
         function expandirTodos(abrir) {
             const elementosDetails = document.querySelectorAll("details");
             elementosDetails.forEach(function(detalhe) {
@@ -333,6 +432,16 @@
                     detalhe.removeAttribute("open");
                 }
             });
+
+            const osId = window.OS_ID;
+            const userId = window.USER_ID;
+            const storageKeyArvore = `arvore_estado_os_${osId}_user_${userId}`;
+
+            const indicesAbertos = [];
+            if (abrir) {
+                elementosDetails.forEach((el, idx) => indicesAbertos.push(idx));
+            }
+            sessionStorage.setItem(storageKeyArvore, JSON.stringify(indicesAbertos));
         }
     </script>
 </body>

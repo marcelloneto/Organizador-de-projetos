@@ -70,8 +70,9 @@ class DocumentoArquivosForm(forms.ModelForm):
     class Meta:
         model = DocumentoItem
         fields = [
-            'status', 
-            'revisao', 
+            'status',
+            'responsavel' ,
+            'revisao',
             'caminho_editavel', 
             'caminho_pdf', 
             'caminho_adicional'

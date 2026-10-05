@@ -5,15 +5,28 @@ import os
 from django.http import Http404, FileResponse
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.contrib.auth.decorators import login_required
 
+from django.contrib.auth.decorators import login_required
 
 def lista_os_view(request):
     ordens_servico = OrdemServico.objects.all().order_by('-id')
     return render(request, 'main/lista_os.html', {'ordens_servico': ordens_servico})
 
+def minha_view(request):
+    # Verifica se o utilizador está autenticado
+    if request.user.is_authenticated:
+        usuario_atual = request.user.username
+        pagina = request.path
+        print(f"O utilizador atual é: {usuario_atual}")
+        print(f"utilizando a página: {pagina}")
+    else:
+        print("Nenhum utilizador logado.")
+    
+
 def detalhe_os_view(request, os_id):
     os_obj = get_object_or_404(OrdemServico, id=os_id)
-    
+    minha_view(request)
     # 1. Captura múltiplos valores dos filtros da barra lateral
     conjuntos_selecionados_list = request.GET.getlist('conjunto')
     tipos_selecionados_list = request.GET.getlist('tipo_doc')
@@ -42,11 +55,11 @@ def detalhe_os_view(request, os_id):
     contexto_hierarquico = []
     for conjunto in conjuntos:
         subconjuntos = conjunto.subconjuntos.all().order_by('acronimo_uu')
-        print(f"conjunto: {conjunto}")
+        
         subconjuntos_lista = []
         for sub in subconjuntos:
             itens = sub.itens.all().order_by('acronimo_tt')
-            print(f"subconjunto: {sub}")
+            
             for item in itens:
                 documentos = item.documentos.all()
                 
@@ -197,7 +210,7 @@ def excluir_subconjunto(request, pk):
     os_id = sub.conjunto.os.id
     if request.method == 'POST':
         sub.delete()
-        print(sub)
+        
         return redirect('detalhe_os', os_id=os_id)
     return render(request, 'main/confirmar_exclusao.html', {'objeto': sub.titulo_2 or sub.acronimo_uu, 'tipo': 'Subconjunto'})
 
@@ -262,7 +275,7 @@ def excluir_documento(request, pk):
     os_id = doc.item.subconjunto.conjunto.os.id
     if request.method == 'POST':
         doc.delete()
-        print(doc)
+        
         return redirect('detalhe_os', os_id=os_id)
     return render(request, 'main/confirmar_exclusao.html', {'objeto': doc.codigo_completo, 'tipo': 'Documento'})
 
@@ -274,6 +287,7 @@ def gerenciar_documento_arquivos(request, pk):
     # Captura os valores originais do banco antes da submissão
     status_antigo = doc.status
     revisao_antiga = doc.revisao
+    responsavel_antigo = doc.responsavel
     
     if request.method == 'POST':
         form = DocumentoArquivosForm(request.POST, request.FILES, instance=doc)
@@ -283,17 +297,25 @@ def gerenciar_documento_arquivos(request, pk):
             # Detecta alterações em Status ou Revisão
             status_alterado = (documento.status != status_antigo)
             revisao_alterada = (documento.revisao != revisao_antiga)
+            responsavel_alterado = (documento.responsavel != responsavel_antigo)
+            if responsavel_alterado:
+                print(responsavel_alterado)
             
-            # Verifica se algum arquivo novo foi enviado no formulário
             tem_upload_novo = bool(
                 request.FILES.get('upload_editavel') or 
                 request.FILES.get('upload_pdf') or 
                 request.FILES.get('upload_adicional')
             )
-            
             try:
-                # REGRA RÍGIDA: Se houve alteração de Status OU de Revisão, 
-                # é obrigatório o upload novo OU o arquivo físico da nova revisão já existir na pasta.
+                # REGRA: Se o status mudou, o utilizador é obrigado a escolher um novo responsável diferente do anterior ou preenchê-lo
+                if status_alterado:
+                                        
+                    novo_responsavel = request.POST.get('responsavel')
+                                        
+                    if not novo_responsavel or novo_responsavel.strip() == "":
+                        raise ValidationError(
+                            "O status do documento foi alterado. É obrigatório selecionar um novo responsável."
+                        )
                 if (status_alterado or revisao_alterada) and not tem_upload_novo:
                     pasta_alvo = documento.caminho_pasta
                     padrao_novo = documento.nome_arquivo_padrao.upper()

@@ -33,11 +33,21 @@
             {% csrf_token %}
             
             <div class="row">
-                <div class="form-group col">
+                <!-- Campo Status -->
+                <div class="form-group col-md-6 mb-3">
                     <label>{{ form.status.label }}</label>
                     {{ form.status }}
                 </div>
-                <div class="form-group col">
+                
+                <!-- Campo Responsável inserido logo ao lado / abaixo -->
+                <div class="form-group col-md-6 mb-3">
+                    <label>{{ form.responsavel.label }}</label>
+                    {{ form.responsavel }}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="form-group col-12 mb-3">
                     <label>{{ form.revisao.label }}</label>
                     {{ form.revisao }}
                 </div>
@@ -45,17 +55,17 @@
 
             <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label>Selecionar Arquivo Editável</label>
                 {{ form.upload_editavel }}
             </div>
 
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label>Selecionar Arquivo PDF</label>
                 {{ form.upload_pdf }}
             </div>
 
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label>Selecionar Arquivo Adicional</label>
                 {{ form.upload_adicional }}
             </div>

@@ -4,7 +4,7 @@ from datetime import datetime, date
 from django.db import models
 from django.core.exceptions import ValidationError
 
-CAMINHO_BASE_PROJETOS = r"C:\Users\marce\OneDrive\Marcello Neto\Marcello - Engenharia\Projetos pessoais\PROJETOS"
+CAMINHO_BASE_PROJETOS = r"K:\Engenharia\CLIENTES\INSIGHT ENERGY - INTERNOS"
 
 CRIADOR_CHOICES = [
     ('Rebeca Palma', 'Rebeca Palma'),
@@ -48,15 +48,16 @@ STATUS_DOCUMENTO_CHOICES = [
     ('Não iniciado', 'Não iniciado'),
     ('Em elaboração', 'Em elaboração'),
     ('Em revisão', 'Em revisão'),
+    ('Em análise', 'Em análise'),
     ('Aprovado', 'Aprovado'),
     ('Em fabricação', 'Em fabricação'),
     ('Cancelado', 'Cancelado'),
 ]
 
-REVISAO_CHOICES = [(f"R{i:02d}", f"R{i:02d}") for i in range(21)]
+REVISAO_CHOICES = [(f"R{i:02d}", f"R{i:02d}") for i in range(9)]
 
 def executar_backup_e_exclusao_pasta(caminho_pasta_alvo):
-    print(f'cccaminho:{caminho_pasta_alvo}')
+    
     if caminho_pasta_alvo and os.path.exists(caminho_pasta_alvo):
         diretorio_pai = os.path.dirname(caminho_pasta_alvo)
         nome_pasta_original = os.path.basename(caminho_pasta_alvo)
@@ -295,9 +296,12 @@ class DocumentoItem(models.Model):
         elif tipo_campo == 'pdf':
             if ext != '.pdf':
                 raise ValidationError("O arquivo enviado para o PDF precisa ser estritamente no formato .pdf")
-
-        if nome_arquivo_enviado.upper() != self.nome_arquivo_padrao.upper():
-            raise ValidationError(f"O nome do arquivo enviado deve seguir rigorosamente o padrão: '{self.nome_arquivo_padrao}{ext}'")
+        if tipo_campo != "editavel":
+            if nome_arquivo_enviado.upper() != self.nome_arquivo_padrao.upper():
+                raise ValidationError(f"O nome do arquivo enviado deve seguir rigorosamente o padrão: '{self.nome_arquivo_padrao}{ext}'")
+        else:
+            if nome_arquivo_enviado.upper() != self.codigo_completo.upper():
+                raise ValidationError(f"O nome do arquivo enviado deve seguir rigorosamente o padrão: '{self.nome_arquivo_padrao}{ext}'")
 
         conjunto = self.item.subconjunto.conjunto
         sub = self.item.subconjunto
@@ -316,8 +320,13 @@ class DocumentoItem(models.Model):
             pasta_destino = os.path.join(pasta_tipo, nome_sub)
             
         os.makedirs(pasta_destino, exist_ok=True)
-
-        nome_base_arquivo = f"{self.nome_arquivo_padrao}{ext}"
+        
+        # Se for um arquivo editável, o nome não leva a revisão. Se for PDF ou outro, mantém o padrão com revisão.
+        if tipo_campo == 'editavel':
+            nome_base_arquivo = f"{self.codigo_completo}{ext}"
+        else:
+            nome_base_arquivo = f"{self.nome_arquivo_padrao}{ext}"
+            
         caminho_destino_final = os.path.join(pasta_destino, nome_base_arquivo)
 
         if os.path.exists(caminho_destino_final):
@@ -370,4 +379,5 @@ class DocumentoItem(models.Model):
         return " - ".join(partes).upper()
 
     def __str__(self):
+
         return f"{self.codigo_completo} ({self.revisao})"
