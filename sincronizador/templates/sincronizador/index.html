@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Propriedades .sldprt</title>
+    
+    <link rel="stylesheet" href="{% static 'sincronizador/css/style.css' %}">
+</head>
+<body>
+    {% csrf_token %}
+
+    <div class="container">
+        <header>
+            <h1>Editor de Propriedades do SolidWorks</h1>
+            <p>Selecione um ou vários ficheiros para gerir e sincronizar individualmente.</p>
+        </header>
+
+        <main>
+            <div class="upload-card">
+                <!-- Atributo multiple para permitir selecionar vários ficheiros da pasta de rede -->
+                <input type="file" id="fileInput" accept=".sldprt,.sldasm" multiple hidden>
+                <button id="selectBtn" class="btn-primary">Escolher Ficheiros no Computador</button>
+                <span id="fileName" class="file-name">Nenhum ficheiro selecionado</span>
+            </div>
+
+            <!-- Caixa de seleção para alternar entre os ficheiros carregados -->
+            <div id="selectorContainer" class="selector-card hidden" style="margin: 20px 0; text-align: left;">
+                <label for="fileSelector" style="font-weight: bold; display: block; margin-bottom: 5px;">Selecione a peça para visualizar/editar:</label>
+                <select id="fileSelector" class="prop-input" style="width: 100%; padding: 10px; font-size: 16px;">
+                    <!-- Preenchido via JavaScript -->
+                </select>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p id="loadingText">A aguardar ação...</p>
+            </div>
+
+            <section id="results" class="results hidden">
+                <h2>Propriedades da Peça</h2>
+                <div class="table-responsive">
+                    <table id="propTable">
+                        <thead>
+                            <tr>
+                                <th>Propriedade</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Preenchido via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="action-bar">
+                    <button id="saveBtn" class="btn-success">Guardar e Aplicar Material</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{% static 'sincronizador/js/script.js' %}"></script>
+</body>
+</html>

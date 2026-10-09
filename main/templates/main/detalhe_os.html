@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -119,94 +120,123 @@
         <div class="row">
             <!-- COLUNA DA ESQUERDA: FILTROS E PESQUISA -->
             <div class="col-md-3 mb-4">
-                <div class="card p-3 shadow-sm bg-white border">
-                    <h4 class="h5 mb-3">Filtros & Pesquisa</h4>
+                <div class="card p-3 shadow-sm bg-white border" style="position: sticky; top: 20px; z-index: 100; max-height: calc(100vh - 40px); display: flex; flex-direction: column;">
+                    <h4 class="h5 mb-3" style="flex-shrink: 0;">Filtros & Pesquisa</h4>
                     
-                    <form id="filterForm" method="GET" action="{% if os.id %}{% url 'detalhe_os' os.id %}{% endif %}">
-                        <!-- Barra de Pesquisa Textual -->
-                        <div class="mb-3">
+                    <form id="filterForm" method="GET" action="{% if os.id %}{% url 'detalhe_os' os.id %}{% endif %}" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                        
+                        <!-- 1. CAMPO DE PESQUISA (Fixo no topo) -->
+                        <div class="mb-3" style="flex-shrink: 0;">
                             <label for="q" class="form-label" style="font-size: 12px; font-weight: bold;">Pesquisar Títulos/Códigos:</label>
                             <input type="text" class="form-control form-control-sm" id="q" name="q" value="{{ termo_busca }}" placeholder="Ex: Estrutura, R00...">
+                        </div>
+
+                        <!-- 2. DATA DE ENTREGA FINAL (Fixo logo abaixo, com atualização automática) -->
+                        <div class="mb-3" style="flex-shrink: 0;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="data_entrega" class="form-label mb-1" style="font-size: 12px; font-weight: bold;">Entrega Final (Até):</label>
+                                {% if data_entrega_selecionada %}
+                                    <a href="#" onclick="limparDataEntrega(event)" style="font-size: 11px; text-decoration: none;" class="text-danger">Limpar data</a>
+                                {% endif %}
+                            </div>
+                            <input type="date" 
+                                class="form-control form-control-sm" 
+                                id="data_entrega" 
+                                name="data_entrega" 
+                                value="{{ data_entrega_selecionada|default:'' }}"
+                                onchange="document.getElementById('filterForm').submit();"
+                                style="font-size: 12px;">
                         </div>
 
                         <!-- CONTAINER DE INPUTS HIDDEN PARA OS FILTROS DA SIDEBAR -->
                         <div id="selectedHiddenContainer"></div>
 
-                        <!-- 1. FILTRO POR CONJUNTO (Pílulas) -->
-                        <div class="mb-3">
-                            <label class="form-label" style="font-size: 12px; font-weight: bold;">Filtrar por Conjunto:</label>
-                            <div class="filter-pills-container">
-                                {% for c in conjuntos_disponiveis %}
-                                    <button type="button" 
-                                            class="filter-pill {% if c.acronimo_vv in conjuntos_selecionados_list %}active{% endif %}" 
-                                            data-filter-type="conjunto"
-                                            data-value="{{ c.acronimo_vv }}"
-                                            onclick="toggleFilter('conjunto', '{{ c.acronimo_vv }}')">
-                                        📦 <strong>{{ c.acronimo_vv }}</strong> - {{ c.titulo_1|default:"Sem título" }}
-                                    </button>
-                                {% endfor %}
-                            </div>
+                        <!-- 2. ÁREA ROLÁVEL APENAS PARA OS MENUS DETAILS -->
+                        <div style="overflow-y: auto; flex-grow: 1; padding-right: 4px; margin-bottom: 10px;">
+                            
+                            <!-- CONJUNTO (Retrátil) -->
+                            <details class="mb-3 border rounded p-2 bg-light" {% if conjuntos_selecionados_list %}open{% endif %}>
+                                <summary style="font-size: 12px; font-weight: bold; cursor: pointer;">Filtrar por Conjunto</summary>
+                                <div class="filter-pills-container mt-2" style="max-height: 150px; overflow-y: auto;">
+                                    {% for c in conjuntos_disponiveis %}
+                                        <button type="button" 
+                                                class="filter-pill {% if c.acronimo_vv in conjuntos_selecionados_list %}active{% endif %}" 
+                                                data-filter-type="conjunto"
+                                                data-value="{{ c.acronimo_vv }}"
+                                                onclick="toggleFilter('conjunto', '{{ c.acronimo_vv }}')">
+                                            📦 <strong>{{ c.acronimo_vv }}</strong> - {{ c.titulo_1|default:"Sem título" }}
+                                        </button>
+                                    {% empty %}
+                                        <small class="text-muted">Nenhum conjunto disponível.</small>
+                                    {% endfor %}
+                                </div>
+                            </details>
+
+                            <!-- TIPO DE DOCUMENTO (Retrátil) -->
+                            <details class="mb-3 border rounded p-2 bg-light" {% if tipos_selecionados_list %}open{% endif %}>
+                                <summary style="font-size: 12px; font-weight: bold; cursor: pointer;">Filtrar por Tipo de Documento</summary>
+                                <div class="filter-pills-container mt-2" style="max-height: 150px; overflow-y: auto;">
+                                    {% for tipo in tipos_documento_disponiveis %}
+                                        <button type="button" 
+                                                class="filter-pill {% if tipo in tipos_selecionados_list %}active{% endif %}" 
+                                                data-filter-type="tipo_doc"
+                                                data-value="{{ tipo }}"
+                                                onclick="toggleFilter('tipo_doc', '{{ tipo }}')">
+                                            📄 {{ tipo }}
+                                        </button>
+                                    {% empty %}
+                                        <small class="text-muted">Nenhum tipo disponível.</small>
+                                    {% endfor %}
+                                </div>
+                            </details>
+
+                            <!-- RESPONSÁVEL (Retrátil) -->
+                            <details class="mb-3 border rounded p-2 bg-light" {% if responsaveis_selecionados_list %}open{% endif %}>
+                                <summary style="font-size: 12px; font-weight: bold; cursor: pointer;">Filtrar por Responsável</summary>
+                                <div class="filter-pills-container mt-2" style="max-height: 150px; overflow-y: auto;">
+                                    {% for resp in responsaveis_disponiveis %}
+                                        <button type="button" 
+                                                class="filter-pill {% if resp in responsaveis_selecionados_list %}active{% endif %}" 
+                                                data-filter-type="responsavel"
+                                                data-value="{{ resp }}"
+                                                onclick="toggleFilter('responsavel', '{{ resp }}')">
+                                            👤 {{ resp }}
+                                        </button>
+                                    {% empty %}
+                                        <small class="text-muted">Nenhum responsável disponível.</small>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            
+                            <!-- ETAPA DE DESENVOLVIMENTO (Retrátil) -->
+                            <details class="mb-3 border rounded p-2 bg-light" {% if etapas_selecionadas_list %}open{% endif %}>
+                                <summary style="font-size: 12px; font-weight: bold; cursor: pointer;">Filtrar por Etapa</summary>
+                                <div class="filter-pills-container mt-2" style="max-height: 150px; overflow-y: auto;">
+                                    {% for etapa in etapas_disponiveis %}
+                                        <button type="button" 
+                                                class="filter-pill {% if etapa in etapas_selecionadas_list %}active{% endif %}" 
+                                                data-filter-type="etapa"
+                                                data-value="{{ etapa }}"
+                                                onclick="toggleFilter('etapa', '{{ etapa }}')">
+                                            📌 {{ etapa }}
+                                        </button>
+                                    {% empty %}
+                                        <small class="text-muted">Nenhuma etapa disponível.</small>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            
                         </div>
 
-                        <!-- 2. MENU SUSPENSO RETRÁTIL: TIPO DE DOCUMENTO -->
-                        <details class="mb-3 border rounded p-2 bg-light" {% if tipos_selecionados_list %}open{% endif %}>
-                            <summary style="font-size: 12px; font-weight: bold; cursor: pointer;">Filtrar por Tipo de Documento</summary>
-                            <div class="filter-pills-container mt-2" style="max-height: 150px; overflow-y: auto;">
-                                {% for tipo in tipos_documento_disponiveis %}
-                                    <button type="button" 
-                                            class="filter-pill {% if tipo in tipos_selecionados_list %}active{% endif %}" 
-                                            data-filter-type="tipo_doc"
-                                            data-value="{{ tipo }}"
-                                            onclick="toggleFilter('tipo_doc', '{{ tipo }}')">
-                                        📄 {{ tipo }}
-                                    </button>
-                                {% empty %}
-                                    <small class="text-muted">Nenhum tipo disponível.</small>
-                                {% endfor %}
-                            </div>
-                        </details>
+                        <!-- 3. BOTÕES DE AÇÃO (Fixos na base do card) -->
+                        <div style="flex-shrink: 0; padding: 10px 4px 0 4px; margin-top: auto; border-top: 1px solid #eee; width: 100%; box-sizing: border-box;">
+                            <button type="submit" class="btn btn-primary w-100 mb-2" style="font-size: 12px; box-sizing: border-box;">Aplicar Filtros</button>
+                            
+                            {% if os.id %}
+                                <a href="{% url 'detalhe_os' os.id %}" class="btn btn-outline-secondary w-100 d-block text-center text-decoration-none" style="font-size: 12px; box-sizing: border-box;">Limpar Filtros</a>
+                            {% endif %}
+                        </div>
 
-                        <!-- 3. MENU SUSPENSO RETRÁTIL: RESPONSÁVEL -->
-                        <details class="mb-3 border rounded p-2 bg-light" {% if responsaveis_selecionados_list %}open{% endif %}>
-                            <summary style="font-size: 12px; font-weight: bold; cursor: pointer;">Filtrar por Responsável</summary>
-                            <div class="filter-pills-container mt-2" style="max-height: 150px; overflow-y: auto;">
-                                {% for resp in responsaveis_disponiveis %}
-                                    <button type="button" 
-                                            class="filter-pill {% if resp in responsaveis_selecionados_list %}active{% endif %}" 
-                                            data-filter-type="responsavel"
-                                            data-value="{{ resp }}"
-                                            onclick="toggleFilter('responsavel', '{{ resp }}')">
-                                        👤 {{ resp }}
-                                    </button>
-                                {% empty %}
-                                    <small class="text-muted">Nenhum responsável disponível.</small>
-                                {% endfor %}
-                            </div>
-                        </details>
-                        
-                        <!-- 4. MENU SUSPENSO RETRÁTIL: ETAPA DE DESENVOLVIMENTO -->
-                        <details class="mb-3 border rounded p-2 bg-light" {% if etapas_selecionadas_list %}open{% endif %}>
-                            <summary style="font-size: 12px; font-weight: bold; cursor: pointer;">Filtrar por Etapa</summary>
-                            <div class="filter-pills-container mt-2" style="max-height: 150px; overflow-y: auto;">
-                                {% for etapa in etapas_disponiveis %}
-                                    <button type="button" 
-                                            class="filter-pill {% if etapa in etapas_selecionadas_list %}active{% endif %}" 
-                                            data-filter-type="etapa"
-                                            data-value="{{ etapa }}"
-                                            onclick="toggleFilter('etapa', '{{ etapa }}')">
-                                        📌 {{ etapa }}
-                                    </button>
-                                {% empty %}
-                                    <small class="text-muted">Nenhuma etapa disponível.</small>
-                                {% endfor %}
-                            </div>
-                        </details>
-
-                        <button type="submit" class="btn btn-primary w-100 mb-2" style="font-size: 12px;">Aplicar Filtros</button>
-                        
-                        {% if os.id %}
-                            <a href="{% url 'detalhe_os' os.id %}" class="btn btn-outline-secondary w-100" style="font-size: 12px;">Limpar Filtros</a>
-                        {% endif %}
                     </form>
                 </div>
             </div>
@@ -214,9 +244,14 @@
             <!-- COLUNA DA DIREITA: CONTEÚDO HIERÁRQUICO -->
             <div class="col-md-9">
                 <h2>Estrutura Hierárquica do Projeto</h2>
-                <div class="mb-3" style="margin-bottom: 15px;">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="expandirTodos(true)">📂 Expandir Todos</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="expandirTodos(false)">📁 Recolher Todos</button>
+                <div class="mb-3 d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="expandirTodos(true)">Expandir Todos</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="expandirTodos(false)">Recolher Todos</button>
+                    
+                    <!-- NOVO BOTÃO: Filtrar por meus itens (responsável = usuário logado) -->
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="filtrarMeusItens('{{ request.user.get_full_name|default:request.user.username }}')">
+                        👤 Meus Itens
+                    </button>
                 </div>
 
                 {% if contexto_hierarquico %}
@@ -297,6 +332,7 @@
                                     {% endfor %}
                                 </div>
                             </details>
+                            
                             {% endfor %}
                         </div>
                     </details>
@@ -318,34 +354,67 @@
             const osId = window.OS_ID;
             const userId = window.USER_ID;
 
-            // Chaves exclusivas por OS e por Usuário usando sessionStorage. 
-            // (Tudo é apagado automaticamente ao fechar a aba ou janela!)
             const storageKeyArvore = `arvore_estado_os_${osId}_user_${userId}`;
             const storageKeyFiltros = `filtros_os_${osId}_user_${userId}`;
 
-            // --- 1. RESTAURAR CAMPO DE PESQUISA DA SESSÃO ---
-            const filtrosSalvos = sessionStorage.getItem(storageKeyFiltros);
-            const campoBusca = document.getElementById('q');
-            
-            if (filtrosSalvos && campoBusca && !campoBusca.value) {
-                try {
-                    const dados = JSON.parse(filtrosSalvos);
-                    if (dados.q) {
-                        campoBusca.value = dados.q;
+            const urlParams = new URLSearchParams(window.location.search);
+            const temParametrosNaUrl = urlParams.has('q') || urlParams.has('conjunto') || urlParams.has('tipo_doc') || urlParams.has('responsavel') || urlParams.has('etapa');
+
+            // --- 1. SE A URL ESTIVER VAZIA (veio de outra página e clicou em voltar), RESTAURA OS FILTROS DA SESSÃO ---
+            if (!temParametrosNaUrl) {
+                const filtrosSalvos = sessionStorage.getItem(storageKeyFiltros);
+                if (filtrosSalvos) {
+                    try {
+                        const dados = JSON.parse(filtrosSalvos);
+                        let deveSubmeter = false;
+
+                        const campoBusca = document.getElementById('q');
+                        if (dados.q && campoBusca) {
+                            campoBusca.value = dados.q;
+                            deveSubmeter = true;
+                        }
+
+                        if (dados.ativos && dados.ativos.length > 0) {
+                            dados.ativos.forEach(item => {
+                                const btn = document.querySelector(`button[data-filter-type="${item.tipo}"][data-value="${item.valor}"]`);
+                                if (btn) {
+                                    btn.classList.add('active');
+                                    deveSubmeter = true;
+                                }
+                            });
+                        }
+
+                        if (deveSubmeter) {
+                            atualizarCamposHidden();
+                            document.getElementById('filterForm').submit();
+                            return; // Interrompe para aguardar o recarregamento com os filtros aplicados
+                        }
+                    } catch (e) {
+                        console.error("Erro ao restaurar filtros salvos", e);
                     }
-                } catch (e) {
-                    console.error("Erro ao carregar termo de busca", e);
                 }
+            } else {
+                // Se a URL tem parâmetros, garante a classe 'active' visual e salva na sessão atual
+                urlParams.forEach((valor, chave) => {
+                    if (['conjunto', 'tipo_doc', 'responsavel', 'etapa'].includes(chave)) {
+                        const btns = document.querySelectorAll(`button[data-filter-type="${chave}"][data-value="${valor}"]`);
+                        btns.forEach(btn => btn.classList.add('active'));
+                    }
+                });
+                salvarFiltrosAtuaisNoSessionStorage();
             }
 
+            atualizarCamposHidden();
+
+            // --- 2. SALVAR CAMPO DE PESQUISA DA SESSÃO AO DIGITAR ---
+            const campoBusca = document.getElementById('q');
             if (campoBusca) {
                 campoBusca.addEventListener('input', function() {
-                    const filtrosData = { q: campoBusca.value };
-                    sessionStorage.setItem(storageKeyFiltros, JSON.stringify(filtrosData));
+                    salvarFiltrosAtuaisNoSessionStorage();
                 });
             }
 
-            // --- 2. RESTAURAR ESTADO DA ÁRVORE DA SESSÃO ---
+            // --- 3. RESTAURAR ESTADO DA ÁRVORE DA SESSÃO ---
             const estadoSalvo = sessionStorage.getItem(storageKeyArvore);
             if (estadoSalvo) {
                 try {
@@ -366,7 +435,7 @@
                 expandirTodos(false);
             }
 
-            // --- 3. SALVAR ESTADO DA ÁRVORE NA SESSÃO AO ALTERAR ---
+            // --- 4. SALVAR ESTADO DA ÁRVORE NA SESSÃO AO ALTERAR ---
             document.querySelectorAll("details").forEach((detalhe) => {
                 detalhe.addEventListener("toggle", function() {
                     const elementosDetails = document.querySelectorAll("details");
@@ -382,7 +451,7 @@
                 });
             });
 
-            // --- 4. ATUALIZAÇÃO AUTOMÁTICA A CADA 15 SEGUNDOS ---
+            // --- 5. ATUALIZAÇÃO AUTOMÁTICA A CADA 15 SEGUNDOS ---
             setInterval(function() {
                 window.location.reload();
             }, 15000);
@@ -394,6 +463,7 @@
             if (btn) {
                 btn.classList.toggle('active');
                 atualizarCamposHidden();
+                salvarFiltrosAtuaisNoSessionStorage(); // Salva imediatamente na sessão ao clicar
                 
                 const form = document.getElementById('filterForm');
                 if (form) {
@@ -423,6 +493,27 @@
             });
         }
 
+        function salvarFiltrosAtuaisNoSessionStorage() {
+            const osId = window.OS_ID;
+            const userId = window.USER_ID;
+            const storageKeyFiltros = `filtros_os_${osId}_user_${userId}`;
+
+            const campoBusca = document.getElementById('q');
+            const filtrosData = {
+                q: campoBusca ? campoBusca.value : '',
+                ativos: []
+            };
+
+            document.querySelectorAll('.filter-pill.active').forEach(btn => {
+                filtrosData.ativos.push({
+                    tipo: btn.getAttribute('data-filter-type'),
+                    valor: btn.getAttribute('data-value')
+                });
+            });
+
+            sessionStorage.setItem(storageKeyFiltros, JSON.stringify(filtrosData));
+        }
+
         function expandirTodos(abrir) {
             const elementosDetails = document.querySelectorAll("details");
             elementosDetails.forEach(function(detalhe) {
@@ -443,6 +534,59 @@
             }
             sessionStorage.setItem(storageKeyArvore, JSON.stringify(indicesAbertos));
         }
+        function filtrarMeusItens(nomeUsuario) {
+            if (!nomeUsuario) return;
+
+            // Procura se já existe um botão de filtro (pílula) para este responsável na barra lateral
+            const btnResponsavel = document.querySelector(`button[data-filter-type="responsavel"][data-value="${nomeUsuario}"]`);
+
+            if (btnResponsavel) {
+                // Se a pílula existe, alterna o estado ativo dela
+                btnResponsavel.classList.toggle('active');
+            } else {
+                // Se a pílula não estiver visível, manipula diretamente via parâmetros da URL
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                if (urlParams.getAll('responsavel').includes(nomeUsuario)) {
+                    const responsaveisAtuais = urlParams.getAll('responsavel').filter(r => r !== nomeUsuario);
+                    urlParams.delete('responsavel');
+                    responsaveisAtuais.forEach(r => urlParams.append('responsavel', r));
+                } else {
+                    urlParams.append('responsavel', nomeUsuario);
+                }
+
+                window.location.search = urlParams.toString();
+                return;
+            }
+
+            // Atualiza os campos hidden e submete o formulário principal
+            if (typeof atualizarCamposHidden === 'function') {
+                atualizarCamposHidden();
+            }
+            if (typeof salvarFiltrosAtuaisNoSessionStorage === 'function') {
+                salvarFiltrosAtuaisNoSessionStorage();
+            }
+            
+            const form = document.getElementById('filterForm');
+            if (form) {
+                form.submit();
+            }
+        }
+        function limparDataEntrega(event) {
+            event.preventDefault(); // Evita que a página recarregue de forma incorreta pelo link
+            const campoData = document.getElementById('data_entrega');
+            if (campoData) {
+                campoData.value = ''; // Limpa o valor do input de data
+                salvarFiltrosAtuaisNoSessionStorage(); // Atualiza a sessão
+                
+                const form = document.getElementById('filterForm');
+                if (form) {
+                    form.submit(); // Submete o formulário para recarregar a página sem o filtro de data
+                }
+            }
+        }
+        
     </script>
+    <script src="{% static 'js/detalhe_os.js' %}"></script>
 </body>
 </html>

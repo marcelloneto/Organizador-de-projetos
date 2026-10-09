@@ -28,26 +28,62 @@
             <div class="alert-error"><strong>Erro de Validação:</strong> {{ erro_validacao }}</div>
         {% endif %}
 
-        <!-- Adicionado o id 'formArquivos' para interceptar o envio -->
+        <!-- SEÇÃO: ARQUIVOS ATUAIS JÁ SALVOS NO SISTEMA -->
+        <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin-bottom: 20px;">
+            <h5 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #333;">📁 Arquivos Atualmente Salvos</h5>
+
+            <!-- 1. PDF -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
+                <span><strong>PDF:</strong> {{ doc.nome_arquivo_pdf_atual|default:"Não anexado" }}</span>
+                {% if doc.caminho_pdf %}
+                    <div>
+                        <a href="{% url 'visualizar_pdf' doc.pk %}" target="_blank" class="btn" style="background: #17a2b8; color: white; padding: 4px 10px; font-size: 11px;">Visualizar</a>
+                        <a href="{% url 'baixar_arquivo' doc.pk 'pdf' %}" class="btn" style="background: #6c757d; color: white; padding: 4px 10px; font-size: 11px;">Baixar</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- 2. EDITÁVEL -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
+                <span><strong>Editável:</strong> {{ doc.nome_arquivo_editavel_atual|default:"Não anexado" }}</span>
+                {% if doc.caminho_editavel %}
+                    <div>
+                        <a href="{% url 'baixar_arquivo' doc.pk 'editavel' %}" class="btn" style="background: #6c757d; color: white; padding: 4px 10px; font-size: 11px;">Baixar</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- 3. ADICIONAL -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span><strong>Adicional:</strong> {{ doc.nome_arquivo_adicional_atual|default:"Não anexado" }}</span>
+                {% if doc.caminho_editavel %}
+                    <div>
+                        <a href="{% url 'baixar_arquivo' doc.pk 'editavel' %}" class="btn" style="background: #6c757d; color: white; padding: 4px 10px; font-size: 11px;">Baixar</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Formulário de Edição e Envio -->
         <form id="formArquivos" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             
             <div class="row">
                 <!-- Campo Status -->
-                <div class="form-group col-md-6 mb-3">
+                <div class="form-group col-md-6 mb-3" style="flex: 1;">
                     <label>{{ form.status.label }}</label>
                     {{ form.status }}
                 </div>
                 
-                <!-- Campo Responsável inserido logo ao lado / abaixo -->
-                <div class="form-group col-md-6 mb-3">
+                <!-- Campo Responsável -->
+                <div class="form-group col-md-6 mb-3" style="flex: 1;">
                     <label>{{ form.responsavel.label }}</label>
                     {{ form.responsavel }}
                 </div>
             </div>
 
             <div class="row">
-                <div class="form-group col-12 mb-3">
+                <div class="form-group col-12 mb-3" style="flex: 1;">
                     <label>{{ form.revisao.label }}</label>
                     {{ form.revisao }}
                 </div>
@@ -56,17 +92,17 @@
             <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
             <div class="form-group mb-3">
-                <label>Selecionar Arquivo Editável</label>
+                <label>Substituir / Selecionar Arquivo Editável</label>
                 {{ form.upload_editavel }}
             </div>
 
             <div class="form-group mb-3">
-                <label>Selecionar Arquivo PDF</label>
+                <label>Substituir / Selecionar Arquivo PDF</label>
                 {{ form.upload_pdf }}
             </div>
 
             <div class="form-group mb-3">
-                <label>Selecionar Arquivo Adicional</label>
+                <label>Substituir / Selecionar Arquivo Adicional</label>
                 {{ form.upload_adicional }}
             </div>
 

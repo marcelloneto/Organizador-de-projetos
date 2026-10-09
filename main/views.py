@@ -32,7 +32,8 @@ def detalhe_os_view(request, os_id):
     tipos_selecionados_list = request.GET.getlist('tipo_doc')
     responsaveis_selecionados_list = request.GET.getlist('responsavel')
     etapas_selecionadas_list = request.GET.getlist('etapa') # Novo filtro de etapa
-    
+    data_entrega_filtro = request.GET.get('data_entrega')
+    print(data_entrega_filtro)
     # 2. Captura o termo de busca textual
     termo_busca = request.GET.get('q', '').strip()
     
@@ -50,6 +51,8 @@ def detalhe_os_view(request, os_id):
     conjuntos = conjuntos_disponiveis
     if conjuntos_selecionados_list:
         conjuntos = conjuntos.filter(acronimo_vv__in=conjuntos_selecionados_list)
+
+    
 
     # Estrutura a hierarquia aplicando todos os filtros cruzados
     contexto_hierarquico = []
@@ -81,10 +84,20 @@ def detalhe_os_view(request, os_id):
                         Q(item__subconjunto__titulo_2__icontains=termo_busca) |
                         Q(item__subconjunto__conjunto__titulo_1__icontains=termo_busca)
                     )
+
+                
+
+                if data_entrega_filtro:
+                    # Filtra registros cuja data seja menor ou igual à selecionada (tudo anterior ou na mesma data)
+                    documentos = documentos.filter(data_emissao_final__lte=data_entrega_filtro)
                 
                 documentos = documentos.order_by('tipo_documento')
                 
-                if not (termo_busca or tipos_selecionados_list or responsaveis_selecionados_list or etapas_selecionadas_list) or documentos.exists():
+                if not (termo_busca or 
+                tipos_selecionados_list or 
+                responsaveis_selecionados_list or 
+                etapas_selecionadas_list or 
+                data_entrega_filtro) or documentos.exists():
                     subconjuntos_lista.append({
                         'subconjunto': sub,
                         'item': item,
@@ -110,6 +123,7 @@ def detalhe_os_view(request, os_id):
         'responsaveis_selecionados_list': responsaveis_selecionados_list,
         'etapas_disponiveis': etapas_disponiveis,
         'etapas_selecionadas_list': etapas_selecionadas_list,
+        'data_entrega_selecionada': data_entrega_filtro,
         'contexto_hierarquico': contexto_hierarquico,
         'termo_busca': termo_busca,
     })
@@ -289,17 +303,70 @@ def gerenciar_documento_arquivos(request, pk):
     revisao_antiga = doc.revisao
     responsavel_antigo = doc.responsavel
     
+    # === VALIDAÇÃO PREVENTIVA (AO ABRIR A TELA - GET) ===
+    # Verifica se os arquivos apontados no banco realmente existem na pasta física. Se não existirem, limpa o campo!
+    houve_correcao_banco = False
+
+    if doc.caminho_editavel and not os.path.exists(doc.caminho_editavel):
+        doc.caminho_editavel = None
+        houve_correcao_banco = True
+
+    if doc.caminho_pdf and not os.path.exists(doc.caminho_pdf):
+        doc.caminho_pdf = None
+        houve_correcao_banco = True
+
+    if doc.caminho_adicional and not os.path.exists(doc.caminho_adicional):
+        doc.caminho_adicional = None
+        houve_correcao_banco = True
+
+    # Varredura para encontrar caso exista fisicamente na pasta mas não estivesse mapeado
+    pasta_alvo = doc.caminho_pasta
+    codigo_base = doc.codigo_completo.upper()
+    padrao_pdf = doc.nome_arquivo_padrao.upper()
+
+    if os.path.exists(pasta_alvo):
+        for arq in os.listdir(pasta_alvo):
+            nome_base, ext = os.path.splitext(arq)
+            caminho_completo_arq = os.path.join(pasta_alvo, arq)
+            nome_up = nome_base.upper()
+            ext_lower = ext.lower()
+
+            # Se o editável não está preenchido, mas o arquivo existe na pasta
+            if not doc.caminho_editavel and nome_up == codigo_base:
+                permissoes_validas = [e.lower() for lista in EXTENSOES_EDITAVEIS_PERMITIDAS.values() for e in lista]
+                if ext_lower in permissoes_validas:
+                    doc.caminho_editavel = caminho_completo_arq
+                    houve_correcao_banco = True
+
+            # Se o PDF não está preenchido, mas o arquivo existe na pasta
+            if not doc.caminho_pdf and nome_up == padrao_pdf:
+                if ext_lower == '.pdf':
+                    doc.caminho_pdf = caminho_completo_arq
+                    houve_correcao_banco = True
+
+    if houve_correcao_banco:
+        doc.save()
+
+    # Guarda os caminhos já corrigidos para o fluxo de POST
+    caminho_editavel_antigo = doc.caminho_editavel
+    caminho_pdf_antigo = doc.caminho_pdf
+    caminho_adicional_antigo = doc.caminho_adicional
+    
     if request.method == 'POST':
         form = DocumentoArquivosForm(request.POST, request.FILES, instance=doc)
         if form.is_valid():
             documento = form.save(commit=False)
             
-            # Detecta alterações em Status ou Revisão
+            # Preserva os caminhos antigos se nenhum arquivo novo foi enviado para aquele campo específico
+            if not request.FILES.get('upload_editavel'):
+                documento.caminho_editavel = caminho_editavel_antigo
+            if not request.FILES.get('upload_pdf'):
+                documento.caminho_pdf = caminho_pdf_antigo
+            if not request.FILES.get('upload_adicional'):
+                documento.caminho_adicional = caminho_adicional_antigo
+
             status_alterado = (documento.status != status_antigo)
             revisao_alterada = (documento.revisao != revisao_antiga)
-            responsavel_alterado = (documento.responsavel != responsavel_antigo)
-            if responsavel_alterado:
-                print(responsavel_alterado)
             
             tem_upload_novo = bool(
                 request.FILES.get('upload_editavel') or 
@@ -307,24 +374,19 @@ def gerenciar_documento_arquivos(request, pk):
                 request.FILES.get('upload_adicional')
             )
             try:
-                # REGRA: Se o status mudou, o utilizador é obrigado a escolher um novo responsável diferente do anterior ou preenchê-lo
                 if status_alterado:
-                                        
                     novo_responsavel = request.POST.get('responsavel')
-                                        
                     if not novo_responsavel or novo_responsavel.strip() == "":
                         raise ValidationError(
                             "O status do documento foi alterado. É obrigatório selecionar um novo responsável."
                         )
+                        
                 if (status_alterado or revisao_alterada) and not tem_upload_novo:
-                    pasta_alvo = documento.caminho_pasta
-                    padrao_novo = documento.nome_arquivo_padrao.upper()
                     arquivo_fisico_encontrado = False
-                    
                     if os.path.exists(pasta_alvo):
                         for arq in os.listdir(pasta_alvo):
                             nome_base, _ = os.path.splitext(arq)
-                            if nome_base.upper() == padrao_novo:
+                            if nome_base.upper() == padrao_pdf:
                                 arquivo_fisico_encontrado = True
                                 break
                     
@@ -335,7 +397,7 @@ def gerenciar_documento_arquivos(request, pk):
                             f"ou sem garantir que ele já esteja na pasta física."
                         )
 
-                # Processa os uploads caso tenham sido enviados
+                # Processa novos uploads caso tenham sido enviados
                 if request.FILES.get('upload_editavel'):
                     caminho = documento.tratar_upload_arquivo(request.FILES['upload_editavel'], tipo_campo='editavel')
                     if caminho: documento.caminho_editavel = caminho
@@ -348,20 +410,11 @@ def gerenciar_documento_arquivos(request, pk):
                     caminho = documento.tratar_upload_arquivo(request.FILES['upload_adicional'], tipo_campo='adicional')
                     if caminho: documento.caminho_adicional = caminho
 
-                # Varredura automática caso nenhum arquivo novo tenha sido enviado, mas os dados mudaram de forma válida
-                pasta_alvo = documento.caminho_pasta
-                padrao_busca = documento.nome_arquivo_padrao.upper()
-
-                if os.path.exists(pasta_alvo) and not tem_upload_novo:
-                    arquivos_na_pasta = os.listdir(pasta_alvo)
-                    
-                    for arq in arquivos_na_pasta:
-                        nome_base, ext = os.path.splitext(arq)
-                        if nome_base.upper() == padrao_busca:
-                            if ext.lower() in [e.lower() for lista in EXTENSOES_EDITAVEIS_PERMITIDAS.values() for e in lista]:
-                                documento.caminho_editavel = os.path.join(pasta_alvo, arq)
-                            elif ext.lower() == '.pdf':
-                                documento.caminho_pdf = os.path.join(pasta_alvo, arq)
+                # Validação final de existência física pós-processamento
+                if documento.caminho_editavel and not os.path.exists(documento.caminho_editavel):
+                    documento.caminho_editavel = None
+                if documento.caminho_pdf and not os.path.exists(documento.caminho_pdf):
+                    documento.caminho_pdf = None
 
                 documento.save()
                 return redirect('detalhe_os', os_id=doc.item.subconjunto.conjunto.os.id)

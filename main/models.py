@@ -11,6 +11,7 @@ CRIADOR_CHOICES = [
     ('Marcello Neto', 'Marcello Neto'),
     ('Bruno Romano', 'Bruno Romano'),
     ('Fábio Watanabe', 'Fábio Watanabe'),
+    ('Ricardo Ferreira', 'Ricardo Ferreira'),
 ]
 
 DISCIPLINA_CHOICES = [
@@ -33,7 +34,7 @@ TIPO_DOCUMENTO_CHOICES = [
 
 EXTENSOES_EDITAVEIS_PERMITIDAS = {
     'RT': ['.docx', '.doc'],
-    'DT': ['.slddrw', '.dwg', '.dxf', '.idw'],
+    'DT': ['.slddrw', '.idw'],
     'CRO': ['.xlsx', '.xls', '.docx', '.doc', '.pptx', '.ppt'],
     'PRO': ['.docx', '.doc'],
     'PO.PRO': ['.docx', '.doc'],
@@ -49,6 +50,7 @@ STATUS_DOCUMENTO_CHOICES = [
     ('Em elaboração', 'Em elaboração'),
     ('Em revisão', 'Em revisão'),
     ('Em análise', 'Em análise'),
+    ('Para aprovação', 'Para aprovação'),
     ('Aprovado', 'Aprovado'),
     ('Em fabricação', 'Em fabricação'),
     ('Cancelado', 'Cancelado'),
@@ -377,6 +379,24 @@ class DocumentoItem(models.Model):
 
         partes = [p.strip() for p in [t1, t2, t3, t4] if p and str(p).strip()]
         return " - ".join(partes).upper()
+
+    @property
+    def nome_arquivo_pdf_atual(self):
+        if self.caminho_pdf:
+            return os.path.basename(self.caminho_pdf)
+        return ""
+
+    @property
+    def nome_arquivo_editavel_atual(self):
+        if self.caminho_editavel:
+            return os.path.basename(self.caminho_editavel)
+        return ""
+    
+    @property
+    def nome_arquivo_adicional_atual(self):
+        if self.caminho_adicional:
+            return os.path.basename(self.caminho_adicional)
+        return ""
 
     def __str__(self):
 
